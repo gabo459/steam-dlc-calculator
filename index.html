@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Steam DLC Completer - ¿Qué DLCs te faltan?</title>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --steam-bg-dark: #101216;
+      --steam-bg-card: #171a21;
+      --steam-blue: #1b2838;
+      --steam-accent: #66c0f4;
+      --steam-gold: #e5c158;
+      --steam-border: #2a475e;
+      --steam-text: #c7d5e0;
+      --steam-text-muted: #8f98a0;
+      --steam-success: #a4d007;
+      --steam-error: #e74c3c;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Motiva Sans', Arial, Helvetica, sans-serif;
+      background: radial-gradient(circle at top, #1b2838 0%, var(--steam-bg-dark) 80%);
+      color: var(--steam-text);
+      min-height: 100vh;
+      padding: 30px 20px;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    header.app-header {
+      background: linear-gradient(90deg, rgba(23, 26, 33, 0.95) 0%, rgba(27, 40, 56, 0.8) 100%);
+      border: 1px solid var(--steam-border);
+      border-radius: 8px;
+      padding: 25px;
+      margin-bottom: 25px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .app-header h1 { font-size: 1.8rem; color: #ffffff; margin-bottom: 6px; }
+    .app-header p { color: var(--steam-text-muted); font-size: 0.9rem; }
+
+    .card {
+      background: var(--steam-bg-card);
+      border: 1px solid var(--steam-border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 25px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-title {
+      font-size: 1rem;
+      color: var(--steam-accent);
+      font-weight: bold;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 2fr 1.5fr auto;
+      gap: 12px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .input-group label {
+      font-size: 0.75rem;
+      color: var(--steam-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .input-group input, .input-group select {
+      background: #0d1217;
+      border: 1px solid var(--steam-border);
+      color: #fff;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .input-group input:focus, .input-group select:focus { border-color: var(--steam-accent); }
+
+    .btn-steam {
+      background: linear-gradient(90deg, #a4d007 0%, #537000 100%);
+      color: #fff;
+      border: none;
+      padding: 0 24px;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 0.95rem;
+      align-self: flex-end;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: filter 0.2s;
+    }
+
+    .btn-steam:hover { filter: brightness(1.2); }
+
+    .btn-calc {
+      background: linear-gradient(90deg, #e5c158 0%, #b89228 100%);
+      color: #000;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 0.85rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: filter 0.2s;
+    }
+    .btn-calc:hover { filter: brightness(1.15); }
+
+    .status-banner {
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      font-size: 0.88rem;
+      display: none;
+    }
+
+    .status-banner.error { background: rgba(231, 76, 60, 0.2); border: 1px solid var(--steam-error); color: var(--steam-error); }
+    .status-banner.info { background: rgba(102, 192, 244, 0.2); border: 1px solid var(--steam-accent); color: var(--steam-accent); }
+
+    .stats-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .stat-card {
+      background: var(--steam-bg-card);
+      border: 1px solid rgba(42, 71, 94, 0.5);
+      border-radius: 6px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-value { font-size: 1.6rem; font-weight: bold; color: var(--steam-accent); margin-top: 4px; }
+
+    .progress-outer {
+      width: 100%;
+      height: 14px;
+      background: #0d1217;
+      border-radius: 7px;
+      overflow: hidden;
+      border: 1px solid var(--steam-border);
+      margin-top: 10px;
+    }
+
+    .progress-inner {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #1973a5 0%, var(--steam-success) 100%);
+      transition: width 0.4s ease;
+    }
+
+    .dlc-sections {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--steam-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .dlc-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .dlc-card {
+      background: var(--steam-bg-card);
+      border: 1px solid var(--steam-border);
+      border-radius: 6px;
+      padding: 10px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      position: relative;
+    }
+
+    .dlc-card.owned { border-left: 4px solid var(--steam-success); }
+    .dlc-card.missing { border-left: 4px solid var(--steam-error); }
+
+    .dlc-img {
+      width: 120px;
+      height: 55px;
+      object-fit: cover;
+      border-radius: 4px;
+      background: #000;
+    }
+
+    .dlc-info { flex: 1; overflow: hidden; }
+    .dlc-name { font-size: 0.88rem; font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dlc-status { font-size: 0.75rem; margin-top: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    
+    .badge-owned { color: var(--steam-success); font-weight: bold; }
+    .badge-missing { color: var(--steam-error); font-weight: bold; }
+    .badge-price { color: var(--steam-gold); font-weight: bold; background: rgba(229, 193, 88, 0.15); padding: 1px 6px; border-radius: 3px; font-size: 0.75rem; border: 1px solid rgba(229, 193, 88, 0.3); }
+
+    .btn-buy {
+      background: #212b38;
+      color: var(--steam-accent);
+      border: 1px solid var(--steam-accent);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      text-decoration: none;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+    .btn-buy:hover { background: var(--steam-accent); color: #000; }
+
+    @media (max-width: 850px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .dlc-sections { grid-template-columns: 1fr; }
+      .btn-steam { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <header class="app-header">
+      <h1>Steam DLC Completer</h1>
+      <p>Descubre qué contenidos descargables (DLCs) te faltan para completar la colección de tus juegos.</p>
+    </header>
+
+    <!-- Credenciales -->
+    <div class="card">
+      <div class="card-title"><span><i class="fab fa-steam"></i> Datos de Acceso</span></div>
+      <div class="form-grid">
+        <div class="input-group">
+          <label for="steam-url">URL / STEAMID64</label>
+          <input type="text" id="steam-url" placeholder="https://steamcommunity.com/id/tu_usuario">
+        </div>
+        <div class="input-group">
+          <label for="api-key">STEAM WEB API KEY</label>
+          <input type="password" id="api-key" placeholder="Tu clave API de Steam">
+        </div>
+        <button class="btn-steam" onclick="loadLibrary()">
+          <i class="fas fa-sync"></i> Cargar Juegos
+        </button>
+      </div>
+    </div>
+
+    <!-- Selección de Juego -->
+    <div class="card" id="game-select-card" style="display: none;">
+      <div class="card-title"><span><i class="fas fa-gamepad"></i> Selecciona un Juego</span></div>
+      <div class="form-grid" style="grid-template-columns: 1fr auto;">
+        <div class="input-group">
+          <label for="game-dropdown">TUS JUEGOS CON ESCANEO DISPONIBLE</label>
+          <select id="game-dropdown"></select>
+        </div>
+        <button class="btn-steam" onclick="analyzeDLCs()">
+          <i class="fas fa-search"></i> Analizar DLCs
+        </button>
+      </div>
+    </div>
+
+    <div id="status-banner" class="status-banner"></div>
+
+    <!-- Panel de Estadísticas -->
+    <div class="card" id="stats-card" style="display: none;">
+      <div class="card-title">
+        <span id="selected-game-title"><i class="fas fa-chart-pie"></i> Estado de Colección</span>
+        <button class="btn-calc" onclick="calculateTotalMissingPrice()">
+          <i class="fas fa-calculator"></i> Calcular Precio Total
+        </button>
+      </div>
+      
+      <div class="stats-panel">
+        <div class="stat-card">
+          <div>DLCs Totales</div>
+          <div class="stat-value" id="stat-total">0</div>
+        </div>
+        <div class="stat-card">
+          <div>Tienes</div>
+          <div class="stat-value" style="color: var(--steam-success);" id="stat-owned">0</div>
+        </div>
+        <div class="stat-card">
+          <div>Te Faltan</div>
+          <div class="stat-value" style="color: var(--steam-error);" id="stat-missing">0</div>
+        </div>
+        <div class="stat-card">
+          <div>Costo Total Faltante</div>
+          <div class="stat-value" style="color: var(--steam-gold);" id="stat-price">--</div>
+        </div>
+      </div>
+
+      <div style="font-size: 0.85rem; text-align: right; margin-bottom: 4px;" id="progress-text">0% Completado</div>
+      <div class="progress-outer">
+        <div class="progress-inner" id="progress-inner"></div>
+      </div>
+    </div>
+
+    <!-- Listas de DLCs -->
+    <div class="dlc-sections" id="dlc-sections" style="display: none;">
+      <div>
+        <div class="section-title">
+          <span><i class="fas fa-times-circle" style="color: var(--steam-error);"></i> DLCs Faltantes</span>
+          <span id="count-missing-tag" style="font-size: 0.8rem; color: var(--steam-text-muted);"></span>
+        </div>
+        <div class="dlc-grid" id="missing-dlc-grid"></div>
+      </div>
+
+      <div>
+        <div class="section-title">
+          <span><i class="fas fa-check-circle" style="color: var(--steam-success);"></i> DLCs que ya posees</span>
+          <span id="count-owned-tag" style="font-size: 0.8rem; color: var(--steam-text-muted);"></span>
+        </div>
+        <div class="dlc-grid" id="owned-dlc-grid"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let ownedAppIdsSet = new Set();
+    let ownedGamesList = [];
+    let currentDLCList = [];
+
+    async function fetchWithProxy(targetUrl) {
+      const proxies = [
+        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        url => `https://corsproxy.io/?${encodeURIComponent(url)}`
+      ];
+
+      for (const getProxyUrl of proxies) {
+        try {
+          const res = await fetch(getProxyUrl(targetUrl));
+          if (res.ok) {
+            const text = await res.text();
+            if (text && text.trim().length > 0) return text;
+          }
+        } catch (e) {}
+      }
+      throw new Error("No se pudo conectar con el servidor proxy.");
+    }
+
+    async function fetchJsonWithProxy(targetUrl) {
+      const text = await fetchWithProxy(targetUrl);
+      return JSON.parse(text);
+    }
+
+    function showStatus(msg, isError = false) {
+      const banner = document.getElementById('status-banner');
+      banner.style.display = 'block';
+      banner.className = `status-banner ${isError ? 'error' : 'info'}`;
+      banner.textContent = msg;
+    }
+
+    function hideStatus() {
+      document.getElementById('status-banner').style.display = 'none';
+    }
+
+    async function resolveSteamId(userInput, apiKey) {
+      const clean = userInput.trim().replace(/\/$/, "");
+      if (/^\d{17}$/.test(clean)) return clean;
+
+      const profileMatch = clean.match(/\/profiles\/(\d{17})/);
+      if (profileMatch) return profileMatch[1];
+
+      const vanityMatch = clean.match(/\/id\/([^\/]+)/);
+      const vanityName = vanityMatch ? vanityMatch[1] : clean.split('/').pop();
+
+      if (apiKey) {
+        try {
+          const data = await fetchJsonWithProxy(`https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=${apiKey}&vanityurl=${encodeURIComponent(vanityName)}`);
+          if (data.response && data.response.success === 1) return data.response.steamid;
+        } catch (e) {}
+      }
+
+      try {
+        const xmlText = await fetchWithProxy(`https://steamcommunity.com/id/${encodeURIComponent(vanityName)}/?xml=1`);
+        const idMatch = xmlText.match(/<steamID64>(\d{17})<\/steamID64>/);
+        if (idMatch && idMatch[1]) return idMatch[1];
+      } catch (e) {}
+
+      return vanityName;
+    }
+
+    async function loadLibrary() {
+      const rawUser = document.getElementById('steam-url').value.trim();
+      const apiKey = document.getElementById('api-key').value.trim();
+
+      if (!rawUser || !apiKey) {
+        showStatus('Por favor ingresa tanto tu URL de Steam como tu API Key.', true);
+        return;
+      }
+
+      localStorage.setItem('dlc_steam_key', apiKey);
+      localStorage.setItem('dlc_steam_url', rawUser);
+
+      showStatus('Obteniendo biblioteca de juegos y licencias del usuario...');
+
+      try {
+        const steamId = await resolveSteamId(rawUser, apiKey);
+        if (!/^\d{17}$/.test(steamId)) {
+          throw new Error('No se pudo resolver el SteamID64 del perfil.');
+        }
+
+        const gamesUrl = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${apiKey}&steamid=${steamId}&format=json&include_appinfo=true`;
+        const data = await fetchJsonWithProxy(gamesUrl);
+        const games = data.response?.games || [];
+
+        if (games.length === 0) {
+          throw new Error('No se encontraron juegos. Asegúrate de que el perfil y los detalles de juegos estén en PÚBLICO.');
+        }
+
+        ownedAppIdsSet = new Set(games.map(g => g.appid));
+        ownedGamesList = games.sort((a, b) => a.name.localeCompare(b.name));
+
+        const dropdown = document.getElementById('game-dropdown');
+        dropdown.innerHTML = '';
+        ownedGamesList.forEach(game => {
+          const opt = document.createElement('option');
+          opt.value = game.appid;
+          opt.textContent = game.name;
+          dropdown.appendChild(opt);
+        });
+
+        document.getElementById('game-select-card').style.display = 'block';
+        showStatus(`¡Éxito! Se cargaron ${games.length} juegos de tu biblioteca.`);
+
+      } catch (err) {
+        showStatus(`Error: ${err.message}`, true);
+      }
+    }
+
+    async function analyzeDLCs() {
+      const dropdown = document.getElementById('game-dropdown');
+      const appId = dropdown.value;
+      const gameName = dropdown.options[dropdown.selectedIndex].text;
+
+      showStatus(`Consultando DLCs oficiales de ${gameName} en Steam Store...`);
+
+      try {
+        const storeUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}`;
+        const storeData = await fetchJsonWithProxy(storeUrl);
+        
+        if (!storeData[appId] || !storeData[appId].success) {
+          throw new Error('No se pudo consultar la información del juego en la tienda.');
+        }
+
+        const gameDetails = storeData[appId].data;
+        const dlcAppIds = gameDetails.dlc || [];
+
+        if (dlcAppIds.length === 0) {
+          showStatus(`El juego "${gameName}" no tiene DLCs registrados en la tienda oficial.`, true);
+          document.getElementById('stats-card').style.display = 'none';
+          document.getElementById('dlc-sections').style.display = 'none';
+          return;
+        }
+
+        showStatus(`Obteniendo nombres y precios de los ${dlcAppIds.length} DLCs...`);
+
+        const dlcDetailsList = [];
+        const chunkSize = 10;
+        
+        for (let i = 0; i < dlcAppIds.length; i += chunkSize) {
+          const chunk = dlcAppIds.slice(i, i + chunkSize);
+          const chunkUrl = `https://store.steampowered.com/api/appdetails?appids=${chunk.join(',')}&filters=basic,price_overview`;
+          try {
+            const chunkData = await fetchJsonWithProxy(chunkUrl);
+            chunk.forEach(id => {
+              if (chunkData[id] && chunkData[id].success) {
+                const data = chunkData[id].data;
+                const po = data.price_overview;
+                dlcDetailsList.push({
+                  appid: id,
+                  name: data.name,
+                  isOwned: ownedAppIdsSet.has(id),
+                  price: po ? (po.final / 100) : 0,
+                  priceFormatted: po ? po.final_formatted : (data.is_free ? 'Gratis' : 'N/A'),
+                  currency: po ? po.currency : ''
+                });
+              } else {
+                dlcDetailsList.push({
+                  appid: id,
+                  name: `DLC AppID ${id}`,
+                  isOwned: ownedAppIdsSet.has(id),
+                  price: 0,
+                  priceFormatted: 'N/A',
+                  currency: ''
+                });
+              }
+            });
+          } catch (e) {
+            chunk.forEach(id => {
+              dlcDetailsList.push({ appid: id, name: `DLC AppID ${id}`, isOwned: ownedAppIdsSet.has(id), price: 0, priceFormatted: 'N/A', currency: '' });
+            });
+          }
+        }
+
+        currentDLCList = dlcDetailsList;
+        renderResults(gameName, dlcDetailsList);
+        calculateTotalMissingPrice(true);
+        hideStatus();
+
+      } catch (err) {
+        showStatus(`Error: ${err.message}`, true);
+      }
+    }
+
+    function calculateTotalMissingPrice(silent = false) {
+      const missing = currentDLCList.filter(d => !d.isOwned);
+      let total = 0;
+      let currencyCode = '';
+      let pricedCount = 0;
+      let freeCount = 0;
+      let sampleFormatted = '';
+
+      missing.forEach(dlc => {
+        if (dlc.price > 0) {
+          total += dlc.price;
+          pricedCount++;
+          if (!currencyCode && dlc.currency) currencyCode = dlc.currency;
+          if (!sampleFormatted && dlc.priceFormatted) sampleFormatted = dlc.priceFormatted;
+        } else if (dlc.priceFormatted === 'Gratis') {
+          freeCount++;
+        }
+      });
+
+      const statPriceEl = document.getElementById('stat-price');
+      
+      if (missing.length === 0) {
+        statPriceEl.textContent = '0.00';
+        if (!silent) showStatus('¡No te falta ningún DLC! El costo total es 0.');
+        return;
+      }
+
+      let formattedTotal = '';
+      if (total > 0) {
+        if (sampleFormatted.includes('S/.')) {
+          formattedTotal = `S/. ${total.toFixed(2)}`;
+        } else if (sampleFormatted.includes('$')) {
+          formattedTotal = `$${total.toFixed(2)}`;
+        } else if (sampleFormatted.includes('€')) {
+          formattedTotal = `${total.toFixed(2)} €`;
+        } else if (currencyCode) {
+          formattedTotal = `${total.toFixed(2)} ${currencyCode}`;
+        } else {
+          formattedTotal = total.toFixed(2);
+        }
+      } else {
+        formattedTotal = freeCount > 0 ? 'Gratis' : 'N/A';
+      }
+
+      statPriceEl.textContent = formattedTotal;
+
+      if (!silent) {
+        showStatus(`Precio total calculado: ${formattedTotal} para ${pricedCount} DLCs faltantes (${freeCount} gratuitos).`);
+      }
+    }
+
+    function renderResults(gameName, dlcList) {
+      const owned = dlcList.filter(d => d.isOwned);
+      const missing = dlcList.filter(d => !d.isOwned);
+
+      const total = dlcList.length;
+      const pct = Math.round((owned.length / total) * 100);
+
+      document.getElementById('selected-game-title').innerHTML = `<i class="fas fa-chart-pie"></i> ${gameName}`;
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-owned').textContent = owned.length;
+      document.getElementById('stat-missing').textContent = missing.length;
+      
+      document.getElementById('progress-text').textContent = `${pct}% Completado (${owned.length}/${total})`;
+      document.getElementById('progress-inner').style.width = `${pct}%`;
+
+      document.getElementById('stats-card').style.display = 'block';
+      document.getElementById('dlc-sections').style.display = 'grid';
+
+      document.getElementById('count-missing-tag').textContent = `${missing.length} Faltantes`;
+      document.getElementById('count-owned-tag').textContent = `${owned.length} Adquiridos`;
+
+      const missingGrid = document.getElementById('missing-dlc-grid');
+      const ownedGrid = document.getElementById('owned-dlc-grid');
+
+      missingGrid.innerHTML = missing.length === 0 ? '<div style="color:var(--steam-success); font-weight:bold;">¡Felicidades! Tienes todos los DLCs.</div>' : '';
+      ownedGrid.innerHTML = owned.length === 0 ? '<div style="color:var(--steam-text-muted);">No posees ningún DLC de este juego todavía.</div>' : '';
+
+      missing.forEach(dlc => {
+        missingGrid.appendChild(createDLCCard(dlc, false));
+      });
+
+      owned.forEach(dlc => {
+        ownedGrid.appendChild(createDLCCard(dlc, true));
+      });
+    }
+
+    function createDLCCard(dlc, isOwned) {
+      const card = document.createElement('div');
+      card.className = `dlc-card ${isOwned ? 'owned' : 'missing'}`;
+      
+      const imgUrl = `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${dlc.appid}/header.jpg`;
+      const priceBadge = dlc.priceFormatted && dlc.priceFormatted !== 'N/A' 
+        ? `<span class="badge-price">${dlc.priceFormatted}</span>` 
+        : '';
+
+      card.innerHTML = `
+        <img src="${imgUrl}" class="dlc-img" onerror="this.src='https://via.placeholder.com/120x55/1b2838/66c0f4?text=Steam+DLC'">
+        <div class="dlc-info">
+          <div class="dlc-name" title="${dlc.name}">${dlc.name}</div>
+          <div class="dlc-status">
+            ${isOwned ? '<span class="badge-owned"><i class="fas fa-check"></i> En tu biblioteca</span>' : '<span class="badge-missing"><i class="fas fa-times"></i> Te falta este DLC</span>'}
+            ${priceBadge}
+          </div>
+        </div>
+        ${!isOwned ? `<a href="https://store.steampowered.com/app/${dlc.appid}" target="_blank" class="btn-buy"><i class="fas fa-shopping-cart"></i> Tienda</a>` : ''}
+      `;
+
+      return card;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedKey = localStorage.getItem('dlc_steam_key');
+      const savedUrl = localStorage.getItem('dlc_steam_url');
+
+      if (savedKey) document.getElementById('api-key').value = savedKey;
+      if (savedUrl) document.getElementById('steam-url').value = savedUrl;
+    });
+  </script>
+</body>
+</html>
