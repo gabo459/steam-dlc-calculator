@@ -366,19 +366,24 @@
   </div>
 
   <script>
-    const WORKER_URL = "https://steamproxy.ernestoygabo.workers.dev/";
+    const WORKER_URL = "https://dlc-calculator-steam.ernestoygabo.workers.dev/";
 
     let ownedAppIdsSet = new Set();
     let ownedGamesList = [];
     let currentDLCList = [];
 
-    async function fetchJsonFromSteam(targetUrl) {
+    async function fetchTextFromSteam(targetUrl) {
       const url = `${WORKER_URL}?url=${encodeURIComponent(targetUrl)}`;
       const res = await fetch(url);
       if (!res.ok) {
         throw new Error(`Error HTTP ${res.status}`);
       }
-      return await res.json();
+      return await res.text();
+    }
+
+    async function fetchJsonFromSteam(targetUrl) {
+      const text = await fetchTextFromSteam(targetUrl);
+      return JSON.parse(text);
     }
 
     function showStatus(msg, isError = false) {
@@ -394,19 +399,39 @@
 
     async function resolveSteamId(userInput, apiKey) {
       const clean = userInput.trim().replace(/\/$/, "");
+      
+      // 1. Si el usuario ingresa un SteamID64 numérico de 17 dígitos
       if (/^\d{17}$/.test(clean)) return clean;
 
+      // 2. Si es una URL del tipo /profiles/76561198...
       const profileMatch = clean.match(/\/profiles\/(\d{17})/);
       if (profileMatch) return profileMatch[1];
 
+      // Extraer identificador personalizado (vanity name)
       const vanityMatch = clean.match(/\/id\/([^\/]+)/);
       const vanityName = vanityMatch ? vanityMatch[1] : clean.split('/').pop();
 
+      // Método A: API ResolveVanityURL oficial
       if (apiKey) {
         try {
           const data = await fetchJsonFromSteam(`https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=${apiKey}&vanityurl=${encodeURIComponent(vanityName)}`);
-          if (data.response && data.response.success === 1 && data.response.steamid) return data.response.steamid;
-        } catch (e) {}
+          if (data.response && data.response.success === 1 && data.response.steamid) {
+            return data.response.steamid;
+          }
+        } catch (e) {
+          console.warn("ResolveVanityURL falló, intentando respaldo XML...", e);
+        }
+      }
+
+      // Método B: Consulta XML directa a Steam Community
+      try {
+        const xmlText = await fetchTextFromSteam(`https://steamcommunity.com/id/${encodeURIComponent(vanityName)}/?xml=1`);
+        const idMatch = xmlText.match(/<steamID64>(\d{17})<\/steamID64>/);
+        if (idMatch && idMatch[1]) {
+          return idMatch[1];
+        }
+      } catch (e) {
+        console.warn("Consulta XML de perfil falló:", e);
       }
 
       return vanityName;
@@ -429,7 +454,7 @@
       try {
         const steamId = await resolveSteamId(rawUser, apiKey);
         if (!/^\d{17}$/.test(steamId)) {
-          throw new Error('No se pudo resolver el SteamID64 del perfil.');
+          throw new Error(`No se pudo resolver "${rawUser}" a un SteamID64 de 17 dígitos. Intenta ingresando directamente tu número SteamID64 (ej. 76561198000000000).`);
         }
 
         const gamesUrl = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${apiKey}&steamid=${steamId}&format=json&include_appinfo=true&include_played_free_games=true&include_free_sub=true`;
@@ -487,7 +512,6 @@
 
         showStatus(`Obteniendo información de ${dlcAppIds.length} DLCs de forma individual...`);
 
-        // Consultar cada DLC individualmente para evitar errores HTTP 400 masivos
         const dlcDetailsList = await Promise.all(dlcAppIds.map(async (id) => {
           const isOwnedInLibrary = ownedAppIdsSet.has(id);
           try {
