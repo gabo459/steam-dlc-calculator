@@ -265,7 +265,7 @@
       <div class="form-grid">
         <div class="input-group">
           <label for="steam-url">URL / STEAMID64</label>
-          <input type="text" id="steam-url" placeholder="https://steamcommunity.com/id/tu_usuario">
+          <input type="text" id="steam-url" placeholder="Ej: 76561198000000000 o https://steamcommunity.com/id/gabo459">
         </div>
         <div class="input-group">
           <label for="api-key">STEAM WEB API KEY</label>
@@ -349,32 +349,20 @@
   </div>
 
   <script>
+    // Tu Cloudflare Worker propio (sin restricciones de CORS ni bloqueos de proxy públicos)
+    const WORKER_URL = "https://steamproxy.ernestoygabo.workers.dev/";
+
     let ownedAppIdsSet = new Set();
     let ownedGamesList = [];
     let currentDLCList = [];
 
-    async function fetchWithProxy(targetUrl) {
-      const proxies = [
-        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-        url => `https://corsproxy.io/?${encodeURIComponent(url)}`
-      ];
-
-      for (const getProxyUrl of proxies) {
-        try {
-          const res = await fetch(getProxyUrl(targetUrl));
-          if (res.ok) {
-            const text = await res.text();
-            if (text && text.trim().length > 0) return text;
-          }
-        } catch (e) {}
+    async function fetchJsonFromSteam(targetUrl) {
+      const url = `${WORKER_URL}?url=${encodeURIComponent(targetUrl)}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Error HTTP ${res.status} al consultar la API de Steam.`);
       }
-      throw new Error("No se pudo conectar con el servidor proxy.");
-    }
-
-    async function fetchJsonWithProxy(targetUrl) {
-      const text = await fetchWithProxy(targetUrl);
-      return JSON.parse(text);
+      return await res.json();
     }
 
     function showStatus(msg, isError = false) {
@@ -400,16 +388,10 @@
 
       if (apiKey) {
         try {
-          const data = await fetchJsonWithProxy(`https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=${apiKey}&vanityurl=${encodeURIComponent(vanityName)}`);
-          if (data.response && data.response.success === 1) return data.response.steamid;
+          const data = await fetchJsonFromSteam(`https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=${apiKey}&vanityurl=${encodeURIComponent(vanityName)}`);
+          if (data.response && data.response.success === 1 && data.response.steamid) return data.response.steamid;
         } catch (e) {}
       }
-
-      try {
-        const xmlText = await fetchWithProxy(`https://steamcommunity.com/id/${encodeURIComponent(vanityName)}/?xml=1`);
-        const idMatch = xmlText.match(/<steamID64>(\d{17})<\/steamID64>/);
-        if (idMatch && idMatch[1]) return idMatch[1];
-      } catch (e) {}
 
       return vanityName;
     }
@@ -431,15 +413,15 @@
       try {
         const steamId = await resolveSteamId(rawUser, apiKey);
         if (!/^\d{17}$/.test(steamId)) {
-          throw new Error('No se pudo resolver el SteamID64 del perfil.');
+          throw new Error('No se pudo resolver el SteamID64 del perfil. Ingresa directamente tu SteamID64 de 17 dígitos (ej. 76561198000000000).');
         }
 
         const gamesUrl = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${apiKey}&steamid=${steamId}&format=json&include_appinfo=true`;
-        const data = await fetchJsonWithProxy(gamesUrl);
+        const data = await fetchJsonFromSteam(gamesUrl);
         const games = data.response?.games || [];
 
         if (games.length === 0) {
-          throw new Error('No se encontraron juegos. Asegúrate de que el perfil y los detalles de juegos estén en PÚBLICO.');
+          throw new Error('No se encontraron juegos. Asegúrate de que los "Detalles de los juegos" en la privacidad de tu perfil de Steam estén en PÚBLICO.');
         }
 
         ownedAppIdsSet = new Set(games.map(g => g.appid));
@@ -471,7 +453,7 @@
 
       try {
         const storeUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}`;
-        const storeData = await fetchJsonWithProxy(storeUrl);
+        const storeData = await fetchJsonFromSteam(storeUrl);
         
         if (!storeData[appId] || !storeData[appId].success) {
           throw new Error('No se pudo consultar la información del juego en la tienda.');
@@ -496,7 +478,7 @@
           const chunk = dlcAppIds.slice(i, i + chunkSize);
           const chunkUrl = `https://store.steampowered.com/api/appdetails?appids=${chunk.join(',')}&filters=basic,price_overview`;
           try {
-            const chunkData = await fetchJsonWithProxy(chunkUrl);
+            const chunkData = await fetchJsonFromSteam(chunkUrl);
             chunk.forEach(id => {
               if (chunkData[id] && chunkData[id].success) {
                 const data = chunkData[id].data;
@@ -584,7 +566,7 @@
       statPriceEl.textContent = formattedTotal;
 
       if (!silent) {
-        showStatus(`Precio total calculado: ${formattedTotal} para ${pricedCount} DLCs faltantes (${freeCount} gratuitos).`);
+        showStatus(`Precio total calculated: ${formattedTotal} para ${pricedCount} DLCs faltantes (${freeCount} gratuitos).`);
       }
     }
 
