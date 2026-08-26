@@ -68,7 +68,7 @@
 
     .form-grid {
       display: grid;
-      grid-template-columns: 2fr 1.5fr auto;
+      grid-template-columns: 2fr 1.5fr 1fr auto;
       gap: 12px;
     }
 
@@ -179,7 +179,7 @@
 
     .dlc-sections {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 20px;
     }
 
@@ -206,29 +206,61 @@
       border-radius: 6px;
       padding: 10px;
       display: flex;
-      gap: 12px;
+      gap: 10px;
       align-items: center;
       position: relative;
+      min-width: 0;
     }
 
     .dlc-card.owned { border-left: 4px solid var(--steam-success); }
     .dlc-card.missing { border-left: 4px solid var(--steam-error); }
 
     .dlc-img {
-      width: 120px;
-      height: 55px;
+      width: 100px;
+      height: 47px;
+      min-width: 100px;
       object-fit: cover;
       border-radius: 4px;
-      background: #000;
+      background: #0d1217;
+      flex-shrink: 0;
     }
 
-    .dlc-info { flex: 1; overflow: hidden; }
-    .dlc-name { font-size: 0.88rem; font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .dlc-status { font-size: 0.75rem; margin-top: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .dlc-info { 
+      flex: 1; 
+      min-width: 0; 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: center;
+    }
+
+    .dlc-name { 
+      font-size: 0.85rem; 
+      font-weight: bold; 
+      color: #fff; 
+      white-space: nowrap; 
+      overflow: hidden; 
+      text-overflow: ellipsis; 
+    }
+
+    .dlc-status { 
+      font-size: 0.72rem; 
+      margin-top: 4px; 
+      display: flex; 
+      align-items: center; 
+      gap: 6px; 
+      flex-wrap: wrap; 
+    }
     
     .badge-owned { color: var(--steam-success); font-weight: bold; }
     .badge-missing { color: var(--steam-error); font-weight: bold; }
-    .badge-price { color: var(--steam-gold); font-weight: bold; background: rgba(229, 193, 88, 0.15); padding: 1px 6px; border-radius: 3px; font-size: 0.75rem; border: 1px solid rgba(229, 193, 88, 0.3); }
+    .badge-price { color: var(--steam-gold); font-weight: bold; background: rgba(229, 193, 88, 0.15); padding: 1px 6px; border-radius: 3px; font-size: 0.72rem; border: 1px solid rgba(229, 193, 88, 0.3); }
+
+    .dlc-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-shrink: 0;
+    }
 
     .btn-toggle {
       background: #21252e;
@@ -251,16 +283,17 @@
       background: #212b38;
       color: var(--steam-accent);
       border: 1px solid var(--steam-accent);
-      padding: 6px 12px;
+      padding: 6px 10px;
       border-radius: 4px;
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       text-decoration: none;
       font-weight: bold;
       transition: all 0.2s;
+      white-space: nowrap;
     }
     .btn-buy:hover { background: var(--steam-accent); color: #000; }
 
-    @media (max-width: 850px) {
+    @media (max-width: 900px) {
       .form-grid { grid-template-columns: 1fr; }
       .dlc-sections { grid-template-columns: 1fr; }
       .btn-steam { width: 100%; justify-content: center; }
@@ -276,9 +309,9 @@
       <p>Descubre qué contenidos descargables (DLCs) te faltan para completar la colección de tus juegos.</p>
     </header>
 
-    <!-- Credenciales -->
+    <!-- Credenciales y Configuración -->
     <div class="card">
-      <div class="card-title"><span><i class="fab fa-steam"></i> Datos de Acceso</span></div>
+      <div class="card-title"><span><i class="fab fa-steam"></i> Datos de Acceso y Configuración</span></div>
       <div class="form-grid">
         <div class="input-group">
           <label for="steam-url">URL / STEAMID64</label>
@@ -287,6 +320,19 @@
         <div class="input-group">
           <label for="api-key">STEAM WEB API KEY</label>
           <input type="password" id="api-key" placeholder="Tu clave API de Steam">
+        </div>
+        <div class="input-group">
+          <label for="currency-select">MONEDA / REGIÓN</label>
+          <select id="currency-select">
+            <option value="pe">Perú (PEN - S/.)</option>
+            <option value="us">EE.UU. / Global (USD - $)</option>
+            <option value="es">Eurozona (EUR - €)</option>
+            <option value="mx">México (MXN - $)</option>
+            <option value="ar">Argentina (ARS - $)</option>
+            <option value="br">Brasil (BRL - R$)</option>
+            <option value="cl">Chile (CLP - $)</option>
+            <option value="co">Colombia (COP - $)</option>
+          </select>
         </div>
         <button class="btn-steam" onclick="loadLibrary()">
           <i class="fas fa-sync"></i> Cargar Juegos
@@ -315,7 +361,7 @@
       <div class="card-title">
         <span id="selected-game-title"><i class="fas fa-chart-pie"></i> Estado de Colección</span>
         <button class="btn-calc" onclick="calculateTotalMissingPrice()">
-          <i class="fas fa-calculator"></i> Calcular Precio Total
+          <i class="fas fa-calculator"></i> Recalcular Precio Total
         </button>
       </div>
       
@@ -372,6 +418,11 @@
     let ownedGamesList = [];
     let currentDLCList = [];
 
+    function handleImageError(img) {
+      img.onerror = null;
+      img.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='47' viewBox='0 0 100 47'><rect width='100' height='47' fill='%230d1217'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2366c0f4' font-size='10' font-family='sans-serif'>Steam DLC</text></svg>";
+    }
+
     async function fetchTextFromSteam(targetUrl) {
       const url = `${WORKER_URL}?url=${encodeURIComponent(targetUrl)}`;
       const res = await fetch(url);
@@ -400,39 +451,30 @@
     async function resolveSteamId(userInput, apiKey) {
       const clean = userInput.trim().replace(/\/$/, "");
       
-      // 1. Si el usuario ingresa un SteamID64 numérico de 17 dígitos
       if (/^\d{17}$/.test(clean)) return clean;
 
-      // 2. Si es una URL del tipo /profiles/76561198...
       const profileMatch = clean.match(/\/profiles\/(\d{17})/);
       if (profileMatch) return profileMatch[1];
 
-      // Extraer identificador personalizado (vanity name)
       const vanityMatch = clean.match(/\/id\/([^\/]+)/);
       const vanityName = vanityMatch ? vanityMatch[1] : clean.split('/').pop();
 
-      // Método A: API ResolveVanityURL oficial
       if (apiKey) {
         try {
           const data = await fetchJsonFromSteam(`https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=${apiKey}&vanityurl=${encodeURIComponent(vanityName)}`);
           if (data.response && data.response.success === 1 && data.response.steamid) {
             return data.response.steamid;
           }
-        } catch (e) {
-          console.warn("ResolveVanityURL falló, intentando respaldo XML...", e);
-        }
+        } catch (e) {}
       }
 
-      // Método B: Consulta XML directa a Steam Community
       try {
         const xmlText = await fetchTextFromSteam(`https://steamcommunity.com/id/${encodeURIComponent(vanityName)}/?xml=1`);
         const idMatch = xmlText.match(/<steamID64>(\d{17})<\/steamID64>/);
         if (idMatch && idMatch[1]) {
           return idMatch[1];
         }
-      } catch (e) {
-        console.warn("Consulta XML de perfil falló:", e);
-      }
+      } catch (e) {}
 
       return vanityName;
     }
@@ -440,6 +482,7 @@
     async function loadLibrary() {
       const rawUser = document.getElementById('steam-url').value.trim();
       const apiKey = document.getElementById('api-key').value.trim();
+      const currency = document.getElementById('currency-select').value;
 
       if (!rawUser || !apiKey) {
         showStatus('Por favor ingresa tanto tu URL de Steam como tu API Key.', true);
@@ -448,13 +491,14 @@
 
       localStorage.setItem('dlc_steam_key', apiKey);
       localStorage.setItem('dlc_steam_url', rawUser);
+      localStorage.setItem('dlc_steam_currency', currency);
 
       showStatus('Obteniendo biblioteca de juegos del usuario...');
 
       try {
         const steamId = await resolveSteamId(rawUser, apiKey);
         if (!/^\d{17}$/.test(steamId)) {
-          throw new Error(`No se pudo resolver "${rawUser}" a un SteamID64 de 17 dígitos. Intenta ingresando directamente tu número SteamID64 (ej. 76561198000000000).`);
+          throw new Error(`No se pudo resolver "${rawUser}" a un SteamID64 de 17 dígitos.`);
         }
 
         const gamesUrl = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${apiKey}&steamid=${steamId}&format=json&include_appinfo=true&include_played_free_games=true&include_free_sub=true`;
@@ -462,7 +506,7 @@
         const games = data.response?.games || [];
 
         if (games.length === 0) {
-          throw new Error('No se encontraron juegos. Asegúrate de que los detalles de tu perfil estén en PÚBLICO.');
+          throw new Error('No se encontraron juegos. Asegúrate de que la privacidad de tus detalles del juego esté en PÚBLICO.');
         }
 
         ownedAppIdsSet = new Set(games.map(g => g.appid));
@@ -489,11 +533,12 @@
       const dropdown = document.getElementById('game-dropdown');
       const appId = dropdown.value;
       const gameName = dropdown.options[dropdown.selectedIndex].text;
+      const currencyCode = document.getElementById('currency-select').value;
 
-      showStatus(`Consultando DLCs oficiales de ${gameName}...`);
+      showStatus(`Consultando DLCs de ${gameName} en región (${currencyCode.toUpperCase()})...`);
 
       try {
-        const storeUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}`;
+        const storeUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}&cc=${currencyCode}&l=spanish`;
         const storeData = await fetchJsonFromSteam(storeUrl);
         
         if (!storeData[appId] || !storeData[appId].success) {
@@ -510,12 +555,12 @@
           return;
         }
 
-        showStatus(`Obteniendo información de ${dlcAppIds.length} DLCs de forma individual...`);
+        showStatus(`Obteniendo precios convertidos de ${dlcAppIds.length} DLCs...`);
 
         const dlcDetailsList = await Promise.all(dlcAppIds.map(async (id) => {
           const isOwnedInLibrary = ownedAppIdsSet.has(id);
           try {
-            const singleUrl = `https://store.steampowered.com/api/appdetails?appids=${id}`;
+            const singleUrl = `https://store.steampowered.com/api/appdetails?appids=${id}&cc=${currencyCode}&l=spanish`;
             const singleData = await fetchJsonFromSteam(singleUrl);
             if (singleData && singleData[id] && singleData[id].success) {
               const data = singleData[id].data;
@@ -596,16 +641,10 @@
 
       let formattedTotal = '';
       if (total > 0) {
-        if (sampleFormatted.includes('S/.')) {
-          formattedTotal = `S/. ${total.toFixed(2)}`;
-        } else if (sampleFormatted.includes('$')) {
-          formattedTotal = `$${total.toFixed(2)}`;
-        } else if (sampleFormatted.includes('€')) {
-          formattedTotal = `${total.toFixed(2)} €`;
-        } else if (currencyCode) {
-          formattedTotal = `${total.toFixed(2)} ${currencyCode}`;
+        if (sampleFormatted) {
+          formattedTotal = sampleFormatted.replace(/[\d\.,\s]+/, ` ${total.toFixed(2)} `).trim();
         } else {
-          formattedTotal = total.toFixed(2);
+          formattedTotal = `${total.toFixed(2)} ${currencyCode}`;
         }
       } else {
         formattedTotal = freeCount > 0 ? 'Gratis' : 'N/A';
@@ -659,14 +698,12 @@
       card.className = `dlc-card ${isOwned ? 'owned' : 'missing'}`;
       
       const imgUrl = `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${dlc.appid}/header.jpg`;
-      const fallbackSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='55' viewBox='0 0 120 55'><rect width='120' height='55' fill='%23171a21'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2366c0f4' font-size='11' font-family='sans-serif'>Steam DLC</text></svg>";
-
       const priceBadge = dlc.priceFormatted && dlc.priceFormatted !== 'N/A' 
         ? `<span class="badge-price">${dlc.priceFormatted}</span>` 
         : '';
 
       card.innerHTML = `
-        <img src="${imgUrl}" class="dlc-img" onerror="this.onerror=null; this.src='${fallbackSvg}';">
+        <img src="${imgUrl}" class="dlc-img" onerror="handleImageError(this)">
         <div class="dlc-info">
           <div class="dlc-name" title="${dlc.name}">${dlc.name}</div>
           <div class="dlc-status">
@@ -674,7 +711,7 @@
             ${priceBadge}
           </div>
         </div>
-        <div style="display: flex; gap: 6px; align-items: center;">
+        <div class="dlc-actions">
           <button class="btn-toggle" onclick="toggleDLCOwnership(${dlc.appid})" title="Cambiar estado manualmente">
             <i class="fas ${isOwned ? 'fa-minus-circle' : 'fa-plus-circle'}"></i> ${isOwned ? 'Marcar Faltante' : 'Marcar Poseído'}
           </button>
@@ -688,9 +725,11 @@
     document.addEventListener('DOMContentLoaded', () => {
       const savedKey = localStorage.getItem('dlc_steam_key');
       const savedUrl = localStorage.getItem('dlc_steam_url');
+      const savedCurrency = localStorage.getItem('dlc_steam_currency');
 
       if (savedKey) document.getElementById('api-key').value = savedKey;
       if (savedUrl) document.getElementById('steam-url').value = savedUrl;
+      if (savedCurrency) document.getElementById('currency-select').value = savedCurrency;
     });
   </script>
 </body>
